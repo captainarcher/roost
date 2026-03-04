@@ -19,9 +19,11 @@ COMM-04: Pre-arrival jobs rebuild from DB after app restart
 """
 
 import argparse
+import os
 import sys
+import tempfile
 import time
-from datetime import datetime, timezone
+from datetime import datetime, date, timedelta, timezone
 
 # Allow imports from project root
 sys.path.insert(0, ".")
@@ -29,25 +31,84 @@ sys.path.insert(0, ".")
 import httpx
 
 # ---------------------------------------------------------------------------
-# Constants
+# Constants — unique per run to ensure INSERT (not UPDATE)
 # ---------------------------------------------------------------------------
 
-AIRBNB_FIXTURE = "tests/fixtures/airbnb_future.csv"
-VRBO_FIXTURE = "tests/fixtures/vrbo_future.csv"
+_RUN_ID = datetime.now().strftime("%H%M%S")
 
-AIRBNB_CONFIRMATION_CODE = "HMUATTEST001"
-VRBO_RESERVATION_ID = "VRBO-UAT-001"
+AIRBNB_CONFIRMATION_CODE = f"HMUAT{_RUN_ID}"
+VRBO_RESERVATION_ID = f"VRBO-UAT-{_RUN_ID}"
 
 AIRBNB_GUEST_NAME = "UAT Test Guest"
 VRBO_GUEST_NAME = "VRBO UAT Guest"
 
-# Expected check-in dates (from fixture)
-AIRBNB_CHECK_IN = "2026-04-03"
-VRBO_CHECK_IN = "2026-04-03"
+# Check-in 30 days out so pre-arrival (check-in - 2d) is always future
+_CHECK_IN = date.today() + timedelta(days=30)
+_CHECK_OUT = _CHECK_IN + timedelta(days=7)
+_BOOKING_DATE = date.today() - timedelta(days=3)
+_PRE_ARRIVAL_DATE = _CHECK_IN - timedelta(days=2)
 
-# Pre-arrival timing: check-in minus 2 days at 14:00 UTC
-AIRBNB_PRE_ARRIVAL_EXPECTED = "2026-04-01"
-VRBO_PRE_ARRIVAL_EXPECTED = "2026-04-01"
+AIRBNB_CHECK_IN = _CHECK_IN.isoformat()
+VRBO_CHECK_IN = _CHECK_IN.isoformat()
+AIRBNB_PRE_ARRIVAL_EXPECTED = _PRE_ARRIVAL_DATE.isoformat()
+VRBO_PRE_ARRIVAL_EXPECTED = _PRE_ARRIVAL_DATE.isoformat()
+
+
+def _make_airbnb_csv() -> str:
+    """Create a temp Airbnb CSV with unique confirmation code."""
+    ci = _CHECK_IN.strftime("%m/%d/%Y")
+    co = _CHECK_OUT.strftime("%m/%d/%Y")
+    bd = _BOOKING_DATE.strftime("%m/%d/%Y")
+    today = date.today().strftime("%m/%d/%Y")
+    content = (
+        "Date,Arriving by date,Type,Confirmation code,Booking date,"
+        "Start date,End date,Nights,Guest,Listing,Details,Reference code,"
+        "Currency,Amount,Paid out,Service fee,Fast pay fee,Cleaning fee,"
+        "Gross earnings,Occupancy taxes,Earnings year\n"
+        f'{today},{co},Payout,,,,,,,,"Transfer to Sample Account LLC, '
+        f'Checking 0000 (USD)",G-{AIRBNB_CONFIRMATION_CODE},USD,,628.56,,,,,,\n'
+        f"{today},,Reservation,{AIRBNB_CONFIRMATION_CODE},{bd},{ci},{co},7,"
+        f"UAT Test Guest,Jay 2BR RV near Sanibel Island & Fort Myers Beach,,,"
+        f"USD,628.56,,19.44,,0.00,648.00,74.52,2026\n"
+    )
+    fd, path = tempfile.mkstemp(suffix=".csv", prefix="airbnb_uat_")
+    os.write(fd, content.encode())
+    os.close(fd)
+    return path
+
+
+def _make_vrbo_csv() -> str:
+    """Create a temp VRBO CSV with unique reservation ID."""
+    dates = f"{_CHECK_IN.strftime('%m/%d/%Y')} - {_CHECK_OUT.strftime('%m/%d/%Y')}"
+    pay_date = date.today().strftime("%m/%d/%Y")
+    disb_date = (date.today() + timedelta(days=7)).strftime("%m/%d/%Y")
+    # Read property ID from existing fixture (may be configured)
+    prop_id = "CHANGE_ME_VRBO_PROPERTY_ID"
+    try:
+        with open("tests/fixtures/vrbo_future.csv") as f:
+            lines = f.readlines()
+            if len(lines) > 1:
+                parts = lines[1].split(",")
+                if len(parts) > 10:
+                    prop_id = parts[10]
+    except FileNotFoundError:
+        pass
+    content = (
+        "RefID,Payout ID,Reservation ID,Check In/Check Out,Number of Nights,"
+        "Source,Subscription Model,Payment Date,Disbursement Date,Payment Type,"
+        "Property ID,Guest Name,Payment Method,Taxable Revenue,Non-Taxable Revenue,"
+        "Guest Payment,Your Revenue,Payable To You,Tax,Service Fee,Currency,"
+        "Commission,VAT on Commission,Payment Processing Fee,Deposit Amount,"
+        "Stay Tax We Remit,Stay Tax You Remit,Refundable Deposit,Payout\n"
+        f"UAT-REF-{_RUN_ID},UAT-PAY-{_RUN_ID},{VRBO_RESERVATION_ID},"
+        f"{dates},7,VRBO,Subscription,{pay_date},{disb_date},Rental Payment,"
+        f"{prop_id},VRBO UAT Guest,ACH,350.00,0.00,450.00,350.00,350.00,"
+        f"0.00,0.00,USD,0.00,0.00,0.00,0.00,0.00,0.00,0.00,350.00\n"
+    )
+    fd, path = tempfile.mkstemp(suffix=".csv", prefix="vrbo_uat_")
+    os.write(fd, content.encode())
+    os.close(fd)
+    return path
 
 # ---------------------------------------------------------------------------
 # Result tracking
@@ -86,12 +147,12 @@ def record_warn(comm_id: str, message: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def run_comm_01(client: httpx.Client) -> None:
+def run_comm_01(client: httpx.Client, airbnb_csv: str) -> None:
     print_header("COMM-01: Airbnb Welcome (native_configured)")
 
-    print_step("Uploading tests/fixtures/airbnb_future.csv via POST /ingestion/airbnb/upload")
+    print_step(f"Uploading Airbnb CSV (booking {AIRBNB_CONFIRMATION_CODE}) via POST /ingestion/airbnb/upload")
     try:
-        with open(AIRBNB_FIXTURE, "rb") as f:
+        with open(airbnb_csv, "rb") as f:
             response = client.post(
                 "/ingestion/airbnb/upload",
                 files={"file": ("airbnb_future.csv", f, "text/csv")},
@@ -105,16 +166,12 @@ def run_comm_01(client: httpx.Client) -> None:
         updated = upload_result.get("updated", 0)
         print(f"  Inserted: {inserted}, Updated: {updated}")
 
-        if inserted == 0 and updated == 0:
-            print("  NOTE: Booking was neither inserted nor updated. Check if it already exists.")
-        elif updated > 0:
-            print("  NOTE: Booking already existed (updated). Communication logs may already be set.")
+        if inserted == 0:
+            record_fail("COMM-01", f"Booking was not inserted (inserted=0). Cannot create communication logs.")
+            return
 
     except httpx.HTTPStatusError as exc:
         record_fail("COMM-01", f"Upload failed: {exc.response.status_code} {exc.response.text}")
-        return
-    except FileNotFoundError:
-        record_fail("COMM-01", f"Fixture file not found: {AIRBNB_FIXTURE}")
         return
     except Exception as exc:
         record_fail("COMM-01", f"Upload error: {exc}")
@@ -162,12 +219,12 @@ def run_comm_01(client: httpx.Client) -> None:
 # ---------------------------------------------------------------------------
 
 
-def run_comm_02(client: httpx.Client) -> None:
+def run_comm_02(client: httpx.Client, vrbo_csv: str) -> None:
     print_header("COMM-02: VRBO Welcome (operator notification email)")
 
-    print_step("Uploading tests/fixtures/vrbo_future.csv via POST /ingestion/vrbo/upload")
+    print_step(f"Uploading VRBO CSV (booking {VRBO_RESERVATION_ID}) via POST /ingestion/vrbo/upload")
     try:
-        with open(VRBO_FIXTURE, "rb") as f:
+        with open(vrbo_csv, "rb") as f:
             response = client.post(
                 "/ingestion/vrbo/upload",
                 files={"file": ("vrbo_future.csv", f, "text/csv")},
@@ -181,11 +238,12 @@ def run_comm_02(client: httpx.Client) -> None:
         updated = upload_result.get("updated", 0)
         print(f"  Inserted: {inserted}, Updated: {updated}")
 
+        if inserted == 0:
+            record_fail("COMM-02", f"Booking was not inserted (inserted=0). Cannot create communication logs.")
+            return
+
     except httpx.HTTPStatusError as exc:
         record_fail("COMM-02", f"Upload failed: {exc.response.status_code} {exc.response.text}")
-        return
-    except FileNotFoundError:
-        record_fail("COMM-02", f"Fixture file not found: {VRBO_FIXTURE}")
         return
     except Exception as exc:
         record_fail("COMM-02", f"Upload error: {exc}")
@@ -529,22 +587,42 @@ def main() -> None:
     base_url = args.base_url.rstrip("/")
     print(f"\nConnecting to API at: {base_url}")
 
-    with httpx.Client(base_url=base_url) as client:
-        # Health check
-        try:
-            resp = client.get("/", timeout=5.0)
-            print(f"API reachable: {resp.status_code}")
-        except Exception as exc:
-            print(f"\nERROR: Cannot reach API at {base_url}: {exc}")
-            print("Ensure the API is running: docker compose up -d roost-api")
-            sys.exit(1)
+    print(f"  Run ID: {_RUN_ID}")
+    print(f"  Airbnb booking: {AIRBNB_CONFIRMATION_CODE}")
+    print(f"  VRBO booking:   {VRBO_RESERVATION_ID}")
+    print(f"  Check-in:       {AIRBNB_CHECK_IN}")
+    print(f"  Pre-arrival:    {AIRBNB_PRE_ARRIVAL_EXPECTED}")
 
-        run_comm_01(client)
-        run_comm_02(client)
-        run_comm_03(client)
-        run_comm_04(client)
+    # Generate unique CSV fixtures for this run
+    airbnb_csv = _make_airbnb_csv()
+    vrbo_csv = _make_vrbo_csv()
+    print(f"  Airbnb CSV:     {airbnb_csv}")
+    print(f"  VRBO CSV:       {vrbo_csv}")
 
-    print_summary()
+    try:
+        with httpx.Client(base_url=base_url) as client:
+            # Health check
+            try:
+                resp = client.get("/", timeout=5.0)
+                print(f"\nAPI reachable: {resp.status_code}")
+            except Exception as exc:
+                print(f"\nERROR: Cannot reach API at {base_url}: {exc}")
+                print("Ensure the API is running: docker compose up -d roost-api")
+                sys.exit(1)
+
+            run_comm_01(client, airbnb_csv)
+            run_comm_02(client, vrbo_csv)
+            run_comm_03(client)
+            run_comm_04(client)
+
+        print_summary()
+    finally:
+        # Clean up temp files
+        for p in (airbnb_csv, vrbo_csv):
+            try:
+                os.unlink(p)
+            except OSError:
+                pass
 
 
 if __name__ == "__main__":
