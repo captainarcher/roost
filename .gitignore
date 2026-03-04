@@ -1,3 +1,6 @@
+# Planning docs (internal development artifacts)
+.planning/
+
 # Python
 __pycache__/
 *.py[cod]
