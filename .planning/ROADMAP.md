@@ -44,12 +44,12 @@ Plans:
   2. PDF filling tests verify that fill_resort_form populates expected fields, detect_form_type identifies the correct form, and field mappings produce valid PDF output
   3. Email formatting tests verify subject lines, body content, and confirmation file matching logic produce correct output for known inputs
   4. Message rendering tests verify that welcome and pre-arrival Jinja2 templates render with expected property details, lock codes, and guest names
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 19-01: Test infrastructure setup (conftest.py, fixtures, mocked services)
-- [ ] 19-02: PDF and email unit tests (TEST-02, TEST-03)
-- [ ] 19-03: Message rendering unit tests (TEST-04)
+- [ ] 19-01-PLAN.md — Test infrastructure setup (pyproject.toml pytest config, conftest.py with shared fixtures)
+- [ ] 19-02-PLAN.md — PDF filling and email formatting unit tests (TEST-02, TEST-03)
+- [ ] 19-03-PLAN.md — Message rendering and scheduler unit tests (TEST-04)
 
 ### Phase 20: Integration Tests
 **Goal**: Full automation flows are tested end-to-end with mocked external services -- a booking import produces the correct PDF email and guest messages without touching real SMTP or platform APIs
