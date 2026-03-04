@@ -8,9 +8,11 @@
 from __future__ import annotations
 
 import os
-from datetime import date
+from dataclasses import dataclass, field
+from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy import create_engine
@@ -159,6 +161,85 @@ def int_vrbo_booking(pg_session, int_property) -> Booking:  # noqa: ANN001
         check_in_date=date(2026, 8, 1),
         check_out_date=date(2026, 8, 5),
         net_amount=Decimal("1200.00"),
+    )
+    pg_session.add(booking)
+    pg_session.flush()
+    return booking
+
+
+# ---------------------------------------------------------------------------
+# SchedulerCapture -- records schedule_pre_arrival_job() calls without APScheduler
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class SchedulerCapture:
+    """Records schedule_pre_arrival_job() calls without running APScheduler.
+
+    Computes the real run_at time via compute_pre_arrival_send_time() so tests
+    can verify scheduling logic without importing app.main (which triggers
+    FastAPI initialization).
+    """
+
+    calls: list[dict] = field(default_factory=list)
+
+    def __call__(self, booking_id: int, check_in_date: date) -> datetime:  # noqa: ANN001
+        from app.communication.scheduler import compute_pre_arrival_send_time
+        run_at = compute_pre_arrival_send_time(check_in_date)
+        self.calls.append({
+            "booking_id": booking_id,
+            "check_in_date": check_in_date,
+            "run_at": run_at,
+        })
+        return run_at
+
+
+@pytest.fixture
+def scheduler_capture():  # noqa: ANN201
+    """Replace schedule_pre_arrival_job with a recording mock.
+
+    Patches at the call site in app.ingestion.normalizer so that
+    _create_communication_logs() records what would have been scheduled
+    without triggering APScheduler or FastAPI init.
+    """
+    capture = SchedulerCapture()
+    with patch("app.ingestion.normalizer.schedule_pre_arrival_job", capture):
+        yield capture
+
+
+# ---------------------------------------------------------------------------
+# Future-dated booking fixtures for communication flow tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def int_vrbo_future_booking(pg_session, int_property) -> Booking:  # noqa: ANN001
+    """VRBO booking with future check-in for pre-arrival scheduling tests."""
+    booking = Booking(
+        platform="vrbo",
+        platform_booking_id="VRBO-FUTURE-001",
+        property_id=int_property.id,
+        guest_name="Carol Davis",
+        check_in_date=date(2026, 10, 15),
+        check_out_date=date(2026, 10, 20),
+        net_amount=Decimal("950.00"),
+    )
+    pg_session.add(booking)
+    pg_session.flush()
+    return booking
+
+
+@pytest.fixture
+def int_airbnb_future_booking(pg_session, int_property) -> Booking:  # noqa: ANN001
+    """Airbnb booking with future check-in for communication flow tests."""
+    booking = Booking(
+        platform="airbnb",
+        platform_booking_id="AIR-FUTURE-001",
+        property_id=int_property.id,
+        guest_name="Diana Kim",
+        check_in_date=date(2026, 10, 15),
+        check_out_date=date(2026, 10, 20),
+        net_amount=Decimal("750.00"),
     )
     pg_session.add(booking)
     pg_session.flush()
