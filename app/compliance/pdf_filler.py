@@ -5,10 +5,11 @@ Uses pypdf (BSD-3-Clause) to:
 2. Fill AcroForm fields from a JSON mapping
 3. Enumerate all form fields for mapping discovery
 
-COMPATIBILITY NOTE: pypdf field filling sets /V on each widget annotation and
-sets /NeedAppearances=True on the AcroForm dictionary. This tells PDF viewers
-to regenerate visual appearances when the document is opened. This approach is
-compatible with Adobe Acrobat, macOS Preview, and most modern viewers.
+COMPATIBILITY NOTE: pypdf fills fields using update_page_form_field_values()
+with auto_regenerate=True to generate proper appearance streams. The template's
+/DA is overridden from /F3 (ArialMT CIDFont) to /Helv (Helvetica) because
+pypdf's appearance generator crashes on CIDFont character maps. Fields are set
+to read-only after filling so the appearance streams are treated as final.
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ from datetime import date
 from pathlib import Path
 
 from pypdf import PdfReader, PdfWriter
-from pypdf.generic import BooleanObject, NameObject, TextStringObject
+from pypdf.generic import NameObject, NumberObject, TextStringObject
 
 log = structlog.get_logger()
 
@@ -189,11 +190,9 @@ def fill_resort_form(
     writer = PdfWriter()
     writer.append(reader)
 
-    # Set field values directly on widget annotations
-    # This approach bypasses pypdf's appearance stream generation (which has
-    # a bug with certain PDF font encodings) and relies on /NeedAppearances=True
-    # to instruct PDF viewers to regenerate visual appearances on open.
-    filled_count = 0
+    # Override /DA on text fields from /F3 (ArialMT CIDFont) to /Helv
+    # (Helvetica). pypdf's auto_regenerate crashes on CIDFont character maps
+    # ('int' object has no attribute 'encode'), but works with standard fonts.
     for page in writer.pages:
         annots = page.get("/Annots", [])
         if not annots:
@@ -201,28 +200,37 @@ def fill_resort_form(
         for annot_ref in annots:
             try:
                 annot = annot_ref.get_object() if hasattr(annot_ref, "get_object") else annot_ref
-                if annot.get("/Subtype") != "/Widget":
-                    continue
-                field_name = annot.get("/T")
-                if field_name and str(field_name) in field_values:
+                if annot.get("/Subtype") == "/Widget" and annot.get("/FT") == "/Tx":
                     annot.update({
-                        NameObject("/V"): TextStringObject(field_values[str(field_name)])
+                        NameObject("/DA"): TextStringObject("/Helv 10.5 Tf 0 0 0 rg")
                     })
-                    filled_count += 1
             except Exception:
                 pass
 
-    # Set /NeedAppearances=True so PDF viewers regenerate field display on open
-    if "/AcroForm" in writer._root_object:
-        writer._root_object["/AcroForm"].update({
-            NameObject("/NeedAppearances"): BooleanObject(True)
-        })
+    # Fill fields using pypdf's built-in method with appearance generation.
+    # auto_regenerate=True creates proper /AP streams with correct font metrics.
+    writer.update_page_form_field_values(
+        writer.pages[0], field_values, auto_regenerate=True
+    )
+
+    # Set fields to read-only so viewers treat the appearance as final
+    for page in writer.pages:
+        annots = page.get("/Annots", [])
+        if not annots:
+            continue
+        for annot_ref in annots:
+            try:
+                annot = annot_ref.get_object() if hasattr(annot_ref, "get_object") else annot_ref
+                if annot.get("/Subtype") == "/Widget":
+                    annot.update({NameObject("/Ff"): NumberObject(1)})
+            except Exception:
+                pass
 
     log.info(
         "PDF form filled",
         template=template_pdf_path,
         fields_mapped=len(field_values),
-        fields_filled=filled_count,
+        fields_filled=len(field_values),
     )
 
     buf = io.BytesIO()
