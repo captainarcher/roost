@@ -330,6 +330,21 @@ def ingest_csv(
     archive_path = archive_file(raw_bytes, filename, platform, config.archive_dir)
 
     # 6. Upsert each booking record
+    #
+    # Pre-check which booking IDs already exist so we can reliably distinguish
+    # INSERT from UPDATE after the upsert.  The previous xmax-based detection
+    # was unreliable with psycopg3 + SQLAlchemy 2.0 on PostgreSQL 16.
+    existing_booking_ids: set[str] = set(
+        db.scalars(
+            select(Booking.platform_booking_id).where(
+                Booking.platform == platform,
+                Booking.platform_booking_id.in_(
+                    [r.platform_booking_id for r in records]
+                ),
+            )
+        ).all()
+    )
+
     inserted_ids: list[str] = []
     updated_ids: list[str] = []
 
@@ -355,13 +370,13 @@ def ingest_csv(
                 "raw_platform_data": stmt.excluded.raw_platform_data,
                 "updated_at": func.now(),  # ORM onupdate is not triggered by upserts
             },
-        ).returning(literal_column("xmax"))
+        )
+        db.execute(stmt)
 
-        row = db.execute(stmt).fetchone()
-        if row is not None and row.xmax == 0:
-            inserted_ids.append(record.platform_booking_id)
-        else:
+        if record.platform_booking_id in existing_booking_ids:
             updated_ids.append(record.platform_booking_id)
+        else:
+            inserted_ids.append(record.platform_booking_id)
 
     db.commit()
 
