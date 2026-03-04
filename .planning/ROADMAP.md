@@ -59,11 +59,11 @@ Plans:
   1. A test simulates a booking import and verifies the complete PDF submission flow: booking data in, filled PDF generated, email composed with attachments, SMTP send called with correct arguments
   2. A test simulates a booking import and verifies the complete communication flow: booking triggers welcome message creation, operator notification sent, pre-arrival job scheduled with correct timing and content
   3. All integration tests use mocked SMTP and mocked platform APIs -- no real external calls are made during test execution
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 20-01: PDF submission flow integration test (TEST-05)
-- [ ] 20-02: Communication flow integration test (TEST-06)
+- [ ] 20-01-PLAN.md — Integration test infrastructure + PDF submission flow tests (TEST-05)
+- [ ] 20-02-PLAN.md — Communication flow integration tests (TEST-06)
 
 ## Progress
 
