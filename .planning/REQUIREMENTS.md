@@ -22,10 +22,10 @@ Requirements for automation verification and test coverage. Each maps to roadmap
 
 ### Test Coverage
 
-- [ ] **TEST-01**: Test infrastructure set up (conftest.py, test database, fixtures, mocked SMTP)
-- [ ] **TEST-02**: Unit tests for PDF form filling (fill_resort_form, detect_form_type, field mapping)
-- [ ] **TEST-03**: Unit tests for email formatting (subject line, body, confirmation file matching)
-- [ ] **TEST-04**: Unit tests for message rendering (welcome and pre-arrival Jinja2 templates)
+- [x] **TEST-01**: Test infrastructure set up (conftest.py, test database, fixtures, mocked SMTP)
+- [x] **TEST-02**: Unit tests for PDF form filling (fill_resort_form, detect_form_type, field mapping)
+- [x] **TEST-03**: Unit tests for email formatting (subject line, body, confirmation file matching)
+- [x] **TEST-04**: Unit tests for message rendering (welcome and pre-arrival Jinja2 templates)
 - [ ] **TEST-05**: Integration test for PDF submission flow (booking → fill → email send)
 - [ ] **TEST-06**: Integration test for communication flow (booking import → message creation → operator notification)
 
@@ -50,10 +50,10 @@ Requirements for automation verification and test coverage. Each maps to roadmap
 | COMM-02 | Phase 18 | Complete |
 | COMM-03 | Phase 18 | Complete |
 | COMM-04 | Phase 18 | Complete |
-| TEST-01 | Phase 19 | Pending |
-| TEST-02 | Phase 19 | Pending |
-| TEST-03 | Phase 19 | Pending |
-| TEST-04 | Phase 19 | Pending |
+| TEST-01 | Phase 19 | Complete |
+| TEST-02 | Phase 19 | Complete |
+| TEST-03 | Phase 19 | Complete |
+| TEST-04 | Phase 19 | Complete |
 | TEST-05 | Phase 20 | Pending |
 | TEST-06 | Phase 20 | Pending |
 

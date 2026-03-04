@@ -11,7 +11,7 @@ Verify that all automation flows built in v1.0 (PDF compliance submission, guest
 ## Phases
 
 - [x] **Phase 18: Manual UAT & Bug Fixes** - Verify all 4 automation flows work end-to-end, fix anything broken
-- [ ] **Phase 19: Test Infrastructure & Unit Tests** - Set up pytest framework and write unit tests for each component
+- [x] **Phase 19: Test Infrastructure & Unit Tests** - Set up pytest framework and write unit tests for each component
 - [ ] **Phase 20: Integration Tests** - Test full automation flows end-to-end with mocked external services
 
 ## Phase Details
@@ -47,9 +47,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 19-01-PLAN.md — Test infrastructure setup (pyproject.toml pytest config, conftest.py with shared fixtures)
-- [ ] 19-02-PLAN.md — PDF filling and email formatting unit tests (TEST-02, TEST-03)
-- [ ] 19-03-PLAN.md — Message rendering and scheduler unit tests (TEST-04)
+- [x] 19-01-PLAN.md — Test infrastructure setup (pyproject.toml pytest config, conftest.py with shared fixtures)
+- [x] 19-02-PLAN.md — PDF filling and email formatting unit tests (TEST-02, TEST-03)
+- [x] 19-03-PLAN.md — Message rendering and scheduler unit tests (TEST-04)
 
 ### Phase 20: Integration Tests
 **Goal**: Full automation flows are tested end-to-end with mocked external services -- a booking import produces the correct PDF email and guest messages without touching real SMTP or platform APIs
@@ -72,5 +72,5 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 18. Manual UAT & Bug Fixes | v1.2 | 3/3 | Complete | 2026-03-04 |
-| 19. Test Infrastructure & Unit Tests | v1.2 | 0/3 | Not started | - |
+| 19. Test Infrastructure & Unit Tests | v1.2 | 3/3 | Complete | 2026-03-04 |
 | 20. Integration Tests | v1.2 | 0/2 | Not started | - |

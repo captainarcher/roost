@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Automated end-to-end rental operations — from booking notification to accounting entry — with zero manual intervention after initial configuration
-**Current focus:** v1.2 Automation Verification & Testing — Phase 19
+**Current focus:** v1.2 Automation Verification & Testing — Phase 20
 
 ## Current Position
 
-Phase: 19 of 20 (Test Infrastructure & Unit Tests)
-Plan: 1 of 3 in current phase
-Status: In progress
-Last activity: 2026-03-04 — Completed 19-01 (Test Infrastructure Setup)
+Phase: 20 of 20 (Integration Tests)
+Plan: 0 of 2 in current phase
+Status: Not started
+Last activity: 2026-03-04 — Phase 19 complete (3/3 plans, 4/4 must-haves verified, 58 tests passing)
 
-Progress: [████░░░░░░] ~50% (4/8 v1.2 plans complete)
+Progress: [███████░░░] ~75% (6/8 v1.2 plans complete)
 
 ## Performance Metrics
 
@@ -30,7 +30,7 @@ Progress: [████░░░░░░] ~50% (4/8 v1.2 plans complete)
 
 **v1.2 Milestone:**
 - Total plans: 8 (3 + 3 + 2)
-- Completed: 3 (Phase 18 done)
+- Completed: 6 (Phase 18 done + Phase 19 done)
 
 ## Accumulated Context
 
@@ -46,6 +46,10 @@ Recent decisions affecting current work:
 - 18-03: Normalizer INSERT detection uses pre-check approach (xmax unreliable with psycopg3)
 - 19-01: smtp_capture patches aiosmtplib.send at module level (not per-importer) so both emailer modules are caught by one monkeypatch
 - 19-01: SMTPCapture stores raw EmailMessage objects for flexible test inspection of headers, body, and attachments
+- 19-02: Production PDF template used directly in tests (not mocked) — treats pdf_mappings/ as shared reference asset
+- 19-02: Phase 18 regressions verified: /Helv font override, /Ff=1 read-only, should_auto_submit counts by status
+- 19-03: render_message_template() tested with templates_dir=PROJECT_ROOT/templates (real disk files, not mocked)
+- 19-03: Only compute_pre_arrival_send_time() imported from scheduler — schedule_pre_arrival_job/rebuild_pre_arrival_jobs trigger FastAPI init
 
 ### Pending Todos
 
@@ -63,7 +67,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-04T20:00:57Z
-Stopped at: Completed 19-01-PLAN.md (Test Infrastructure Setup)
+Last session: 2026-03-04
+Stopped at: Phase 19 complete, Phase 20 ready to start
 Resume file: None
-Next action: Execute 19-02 (test-compliance-emailer)
+Next action: /gsd:plan-phase 20
