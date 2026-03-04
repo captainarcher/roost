@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 19 of 20 (Test Infrastructure & Unit Tests)
-Plan: 0 of 3 in current phase
-Status: Not started
-Last activity: 2026-03-04 — Phase 18 complete (3/3 plans, 7/7 must-haves verified)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-03-04 — Completed 19-01 (Test Infrastructure Setup)
 
-Progress: [███░░░░░░░] ~38% (3/8 v1.2 plans complete)
+Progress: [████░░░░░░] ~50% (4/8 v1.2 plans complete)
 
 ## Performance Metrics
 
@@ -44,6 +44,8 @@ Recent decisions affecting current work:
 - 18-01: PDF fill uses /Helv override + auto_regenerate + read-only fields (CIDFont incompatible with pypdf)
 - 18-02: Preview mode threshold counts successful sends (not submitted_automatically flag)
 - 18-03: Normalizer INSERT detection uses pre-check approach (xmax unreliable with psycopg3)
+- 19-01: smtp_capture patches aiosmtplib.send at module level (not per-importer) so both emailer modules are caught by one monkeypatch
+- 19-01: SMTPCapture stores raw EmailMessage objects for flexible test inspection of headers, body, and attachments
 
 ### Pending Todos
 
@@ -61,7 +63,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-04
-Stopped at: Phase 18 complete, Phase 19 ready to start
+Last session: 2026-03-04T20:00:57Z
+Stopped at: Completed 19-01-PLAN.md (Test Infrastructure Setup)
 Resume file: None
-Next action: /gsd:plan-phase 19
+Next action: Execute 19-02 (test-compliance-emailer)
