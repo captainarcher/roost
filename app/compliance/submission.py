@@ -43,22 +43,23 @@ log = structlog.get_logger()
 def should_auto_submit(db: "Session", threshold: int = 3) -> bool:
     """Check if the system has passed the preview-mode threshold.
 
-    Counts submissions where submitted_automatically=True. Once this count
-    reaches the threshold, all future submissions are auto-sent.
+    Counts submissions with status 'submitted' or 'confirmed' (i.e. successfully
+    sent). Once this count reaches the threshold, all future submissions are
+    auto-sent without manual approval.
 
     The count is performed in the same transaction as the subsequent insert
     to prevent race conditions (two simultaneous bookings both reading count=2).
 
     Args:
         db: Active SQLAlchemy session (should be in a transaction).
-        threshold: Number of successful auto-submissions before preview mode ends.
+        threshold: Number of successful submissions before preview mode ends.
 
     Returns:
         True if auto-submit is enabled (past threshold).
     """
     count = db.execute(
         select(func.count()).select_from(ResortSubmission).where(
-            ResortSubmission.submitted_automatically == True  # noqa: E712
+            ResortSubmission.status.in_(("submitted", "confirmed"))
         )
     ).scalar_one()
     return count >= threshold
