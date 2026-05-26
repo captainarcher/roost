@@ -1,3 +1,5 @@
+NOTE: I am no longer maintaining this software. I have switched to Guesty - it meets 80% of my needs and provides an option for having an offshore support team handling day-to-day guest communications.
+
 # Roost
 
 Self-hosted vacation rental operations platform.
